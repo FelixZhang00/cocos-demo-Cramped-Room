@@ -1,44 +1,93 @@
 
-import { _decorator, Component, Node } from 'cc';
+import { _decorator, Component, Animation,Node, SpriteFrame } from 'cc';
+import { FSM_PARAM_TYPE_ENUM } from '../Enums';
+import State from './State';
+import SubStateMachine from './SubStateMachine';
 const { ccclass, property } = _decorator;
 
-/**
- * Predefined variables
- * Name = StateMachine
- * DateTime = Sat Sep 16 2023 21:36:15 GMT+0800 (中国标准时间)
- * Author = felixboy666
- * FileBasename = StateMachine.ts
- * FileBasenameNoExtension = StateMachine
- * URL = db://assets/Base/StateMachine.ts
- * ManualUrl = https://docs.cocos.com/creator/3.4/manual/en/
- *
- */
- 
-@ccclass('StateMachine')
-export class StateMachine extends Component {
-    // [1]
-    // dummy = '';
+type ParamsValueType = boolean | number
 
-    // [2]
-    // @property
-    // serializableDummy = 0;
-
-    start () {
-        // [3]
-    }
-
-    // update (deltaTime: number) {
-    //     // [4]
-    // }
+export interface IParamsValue {
+  type: FSM_PARAM_TYPE_ENUM
+  value: ParamsValueType
 }
 
-/**
- * [1] Class member could be defined like this.
- * [2] Use `property` decorator if your want the member to be serializable.
- * [3] Your initialization goes here.
- * [4] Your update function goes here.
- *
- * Learn more about scripting: https://docs.cocos.com/creator/3.4/manual/en/scripting/
- * Learn more about CCClass: https://docs.cocos.com/creator/3.4/manual/en/scripting/decorator.html
- * Learn more about life-cycle callbacks: https://docs.cocos.com/creator/3.4/manual/en/scripting/life-cycle-callbacks.html
+export const getInitParamsTrigger = () => {
+  return {
+    type: FSM_PARAM_TYPE_ENUM.TRIGGER,
+    value: false,
+  }
+}
+
+export const getInitParamsNumber = () => {
+  return {
+    type: FSM_PARAM_TYPE_ENUM.NUMBER,
+    value: 0,
+  }
+}
+
+/***
+ * 流动图
+ * 1.entity的state或者direction改变触发setter
+ * 2.setter里触发fsm的setParams方法
+ * 3.setParams执行run方法（run方法由子类重写）
+ * 4.run方法会更改currentState，然后触发currentState的setter
+ * 5-1.如果currentState是子状态机，继续执行他的run方法，run方法又会设置子状态机的currentState，触发子状态run方法
+ * 5-2.如果是子状态，run方法就是播放动画
  */
+
+/***
+ * 有限状态机基类
+ */
+@ccclass('StateMachine')
+export default abstract class StateMachine extends Component {
+    private _currentState: State | SubStateMachine = null
+    params: Map<string, IParamsValue> = new Map()
+    stateMachines: Map<string, SubStateMachine | State> = new Map()
+    animationComponent: Animation
+    waitingList: Array<Promise<SpriteFrame[]>> = []
+
+    getParams(paramName: string) {
+        if (this.params.has(paramName)) {
+          return this.params.get(paramName).value
+        }
+      }
+
+    setParams(paramName: string, value: ParamsValueType) {
+        if (this.params.has(paramName)) {
+          this.params.get(paramName).value = value
+          this.run()
+          this.resetTrigger()
+        }
+      }
+
+    /***
+     * 由子类重写，方法目标是根据当前状态和参数修改currentState
+     */
+    abstract init(): void
+    abstract run(): void
+
+    /***
+     * 清空所有trigger
+     */
+    resetTrigger() {
+        for (const [, value] of this.params) {
+        if (value.type === FSM_PARAM_TYPE_ENUM.TRIGGER) {
+            value.value = false
+        }
+        }
+    }
+
+    get currentState() {
+        return this._currentState
+    }
+
+    set currentState(newState) {
+        if (!newState) {
+        return
+        }
+        this._currentState = newState
+        this._currentState.run()
+    }
+
+}

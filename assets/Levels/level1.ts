@@ -1,8 +1,8 @@
 
 import { _decorator, Component, Node } from 'cc';
 const { ccclass, property } = _decorator;
-import { TILE_TYPE_ENUM} from '../Enums';
-import { ILevel } from '.';
+import { DIRECTION_ENUM, ENTITY_STATE_ENUM, ENTITY_TYPE_ENUM, TILE_TYPE_ENUM} from '../Enums';
+import { IEntity, ILevel } from '.';
 
 
 const mapInfo = [
@@ -428,11 +428,39 @@ const mapInfo = [
     ],
   ];
 
+const player: IEntity = {
+    x: 2,
+    y: 8,
+    direction: DIRECTION_ENUM.TOP,
+    state: ENTITY_STATE_ENUM.IDLE,
+    type: ENTITY_TYPE_ENUM.PLAYER,
+};
+const enemies: Array<IEntity> = [
+    {
+      x: 7,
+      y: 6,
+      direction: DIRECTION_ENUM.TOP,
+      state: ENTITY_STATE_ENUM.IDLE,
+      type: ENTITY_TYPE_ENUM.SKELETON_WOODEN,
+    },
+];
 
+const bursts: Array<IEntity> = [];
 
+const door: IEntity = {
+  x: 7,
+  y: 8,
+  direction: DIRECTION_ENUM.BOTTOM,
+  state: ENTITY_STATE_ENUM.IDLE,
+  type: ENTITY_TYPE_ENUM.DOOR,
+};
 
 const level: ILevel = {
-    mapInfo
+    mapInfo,
+    player,
+    enemies,
+    bursts,
+    door,
 }
 
 export default level

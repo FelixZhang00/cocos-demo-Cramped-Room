@@ -1,44 +1,63 @@
 
-import { _decorator, Component, Node } from 'cc';
+import { _decorator, animation, AnimationClip, Component, Node, Sprite, SpriteFrame } from 'cc';
+import StateMachine from './StateMachine';
+import { ResourceManager } from '../Scripts/Runtime/ResourceManager';
+import { sortSpriteFrame } from '../Scripts/Utils';
 const { ccclass, property } = _decorator;
 
-/**
- * Predefined variables
- * Name = State
- * DateTime = Sat Sep 16 2023 21:16:10 GMT+0800 (中国标准时间)
- * Author = felixboy666
- * FileBasename = State.ts
- * FileBasenameNoExtension = State
- * URL = db://assets/Base/State.ts
- * ManualUrl = https://docs.cocos.com/creator/3.4/manual/en/
- *
+
+/***
+ * unit:milisecond
  */
- 
-@ccclass('State')
-export class State extends Component {
-    // [1]
-    // dummy = '';
+export const ANIMATION_SPEED = 1 / 8
 
-    // [2]
-    // @property
-    // serializableDummy = 0;
-
-    start () {
-        // [3]
+/***
+ * 状态（每组动画的承载容器，持有SpriteAnimation组件执行播放）
+ */
+export default class State  {
+    private animationClip: AnimationClip
+    constructor(
+      private fsm: StateMachine,
+      private spriteFrameDir: string,
+      private wrapMode: AnimationClip.WrapMode = AnimationClip.WrapMode.Normal,
+      private speed: number = ANIMATION_SPEED,
+      private events: Array<AnimationClip.IEvent> = [],
+    ) {
+      this.init()
     }
 
-    // update (deltaTime: number) {
-    //     // [4]
-    // }
+    async init() {
+      //生成动画轨道属性
+      const track = new animation.ObjectTrack()
+      track.path = new animation.TrackPath().toComponent(Sprite).toProperty('spriteFrame')
+      const waiting = ResourceManager.Instance.loadDir(this.spriteFrameDir, SpriteFrame)
+      this.fsm.waitingList.push(waiting)
+      const spriteFrames = await waiting
+      const frames: Array<[number, SpriteFrame]> = sortSpriteFrame(spriteFrames).map((item, index) => [
+        index * this.speed,
+        item,
+      ])
+      track.channel.curve.assignSorted(frames)
+
+      //动画添加轨道
+      this.animationClip = new AnimationClip()
+      this.animationClip.name = this.spriteFrameDir
+      this.animationClip.duration = frames.length * this.speed
+      this.animationClip.addTrack(track)
+      this.animationClip.wrapMode = this.wrapMode
+      for (const event of this.events) {
+        this.animationClip.events.push(event)
+      }
+      this.animationClip.updateEventDatas()
+    }
+
+    run() {
+      if (this.fsm.animationComponent.defaultClip?.name === this.animationClip.name) {
+        return
+      }
+
+      this.fsm.animationComponent.defaultClip = this.animationClip
+      this.fsm.animationComponent.play()
+    }
 }
 
-/**
- * [1] Class member could be defined like this.
- * [2] Use `property` decorator if your want the member to be serializable.
- * [3] Your initialization goes here.
- * [4] Your update function goes here.
- *
- * Learn more about scripting: https://docs.cocos.com/creator/3.4/manual/en/scripting/
- * Learn more about CCClass: https://docs.cocos.com/creator/3.4/manual/en/scripting/decorator.html
- * Learn more about life-cycle callbacks: https://docs.cocos.com/creator/3.4/manual/en/scripting/life-cycle-callbacks.html
- */

@@ -48,7 +48,7 @@ export class TileMapManager extends Component {
           const type = item.type
           const tile = createUINode()
           const tileManager = tile.addComponent(TileManager)
-          tileManager.init(spriteFrame, i, j)
+          tileManager.init(type,spriteFrame, i, j)
           tile.setParent(this.node)
         }
 

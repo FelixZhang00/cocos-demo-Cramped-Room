@@ -1,5 +1,11 @@
 
-import { _decorator, Component, Node } from 'cc';
+import { _decorator,Animation, Component, Node } from 'cc';
+import StateMachine, { getInitParamsNumber, getInitParamsTrigger } from '../../Base/StateMachine';
+import { EntityManager } from '../../Base/EntityManager';
+import { ENTITY_STATE_ENUM, PARAMS_NAME_ENUM } from '../../Enums';
+import IdleSubStateMachine from './IdleSubStateMachine';
+import TurnLeftSubStateMachine from './TurnLeftSubStateMachine';
+import TurnRightSubStateMachine from './TurnRightSubStateMachine';
 const { ccclass, property } = _decorator;
 
 /**
@@ -13,32 +19,110 @@ const { ccclass, property } = _decorator;
  * ManualUrl = https://docs.cocos.com/creator/3.4/manual/en/
  *
  */
- 
+
 @ccclass('PlayerStateMachine')
-export class PlayerStateMachine extends Component {
-    // [1]
-    // dummy = '';
+export class PlayerStateMachine extends StateMachine {
 
-    // [2]
-    // @property
-    // serializableDummy = 0;
+    async init() {
+        this.animationComponent = this.node.addComponent(Animation)
 
-    start () {
-        // [3]
-    }
+        this.initParams()
+        this.initStateMachines()
+        this.initAnimationEvent()
 
-    // update (deltaTime: number) {
-    //     // [4]
-    // }
+        await Promise.all(this.waitingList)
+      }
+
+      initAnimationEvent() {
+        this.animationComponent.on(Animation.EventType.FINISHED, () => {
+          const whiteList = ['block', 'turn', 'attack']
+          const name = this.animationComponent.defaultClip.name
+          if (whiteList.some(v => name.includes(v))) {
+            this.node.getComponent(EntityManager).state = ENTITY_STATE_ENUM.IDLE
+          }
+        })
+      }
+
+      initParams() {
+        this.params.set(PARAMS_NAME_ENUM.IDLE, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.ATTACK, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.TURNLEFT, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.TURNRIGHT, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.BLOCKFRONT, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.BLOCKBACK, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.BLOCKLEFT, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.BLOCKRIGHT, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.BLOCKTURNLEFT, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.BLOCKTURNRIGHT, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.DEATH, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.AIRDEATH, getInitParamsTrigger())
+        this.params.set(PARAMS_NAME_ENUM.DIRECTION, getInitParamsNumber())
+      }
+
+      initStateMachines() {
+        this.stateMachines.set(PARAMS_NAME_ENUM.IDLE, new IdleSubStateMachine(this))
+        this.stateMachines.set(PARAMS_NAME_ENUM.TURNLEFT, new TurnLeftSubStateMachine(this))
+        this.stateMachines.set(PARAMS_NAME_ENUM.TURNRIGHT, new TurnRightSubStateMachine(this))
+        // this.stateMachines.set(PARAMS_NAME_ENUM.BLOCKFRONT, new BlockFrontSubStateMachine(this))
+        // this.stateMachines.set(PARAMS_NAME_ENUM.BLOCKBACK, new BlockBackSubStateMachine(this))
+        // this.stateMachines.set(PARAMS_NAME_ENUM.BLOCKLEFT, new BlockLeftSubStateMachine(this))
+        // this.stateMachines.set(PARAMS_NAME_ENUM.BLOCKRIGHT, new BlockRightSubStateMachine(this))
+        // this.stateMachines.set(PARAMS_NAME_ENUM.BLOCKTURNLEFT, new BlockTurnLeftSubStateMachine(this))
+        // this.stateMachines.set(PARAMS_NAME_ENUM.BLOCKTURNRIGHT, new BlockTurnRightSubStateMachine(this))
+        // this.stateMachines.set(PARAMS_NAME_ENUM.ATTACK, new AttackSubStateMachine(this))
+        // this.stateMachines.set(PARAMS_NAME_ENUM.DEATH, new DeathSubStateMachine(this))
+        // this.stateMachines.set(PARAMS_NAME_ENUM.AIRDEATH, new AirDeathSubStateMachine(this))
+      }
+
+      /***
+       * 根据当前所在状态（currentState）和参数（params）决定怎么切换状态机
+       */
+      run() {
+        switch (this.currentState) {
+          case this.stateMachines.get(PARAMS_NAME_ENUM.IDLE):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.ATTACK):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.TURNLEFT):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.TURNRIGHT):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKTURNLEFT):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKTURNRIGHT):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKFRONT):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKBACK):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKLEFT):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKRIGHT):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.DEATH):
+          case this.stateMachines.get(PARAMS_NAME_ENUM.AIRDEATH):
+            if (this.params.get(PARAMS_NAME_ENUM.DEATH).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.DEATH)
+            } else if (this.params.get(PARAMS_NAME_ENUM.AIRDEATH).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.AIRDEATH)
+            } else if (this.params.get(PARAMS_NAME_ENUM.TURNLEFT).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.TURNLEFT)
+            } else if (this.params.get(PARAMS_NAME_ENUM.TURNRIGHT).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.TURNRIGHT)
+            } else if (this.params.get(PARAMS_NAME_ENUM.BLOCKFRONT).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKFRONT)
+            } else if (this.params.get(PARAMS_NAME_ENUM.BLOCKBACK).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKBACK)
+            } else if (this.params.get(PARAMS_NAME_ENUM.BLOCKLEFT).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKLEFT)
+            } else if (this.params.get(PARAMS_NAME_ENUM.BLOCKRIGHT).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKRIGHT)
+            } else if (this.params.get(PARAMS_NAME_ENUM.BLOCKTURNLEFT).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKTURNLEFT)
+            } else if (this.params.get(PARAMS_NAME_ENUM.BLOCKTURNRIGHT).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.BLOCKTURNRIGHT)
+            } else if (this.params.get(PARAMS_NAME_ENUM.ATTACK).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.ATTACK)
+            } else if (this.params.get(PARAMS_NAME_ENUM.IDLE).value) {
+              this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.IDLE)
+            } else {
+              this.currentState = this.currentState
+            }
+            break
+          default:
+            this.currentState = this.stateMachines.get(PARAMS_NAME_ENUM.IDLE)
+            break
+        }
+      }
 }
 
-/**
- * [1] Class member could be defined like this.
- * [2] Use `property` decorator if your want the member to be serializable.
- * [3] Your initialization goes here.
- * [4] Your update function goes here.
- *
- * Learn more about scripting: https://docs.cocos.com/creator/3.4/manual/en/scripting/
- * Learn more about CCClass: https://docs.cocos.com/creator/3.4/manual/en/scripting/decorator.html
- * Learn more about life-cycle callbacks: https://docs.cocos.com/creator/3.4/manual/en/scripting/life-cycle-callbacks.html
- */

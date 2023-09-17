@@ -1,44 +1,34 @@
 
 import { _decorator, Component, Node } from 'cc';
+import State from './State';
+import StateMachine from './StateMachine';
 const { ccclass, property } = _decorator;
 
-/**
- * Predefined variables
- * Name = SubStateMachine
- * DateTime = Sat Sep 16 2023 21:45:44 GMT+0800 (中国标准时间)
- * Author = felixboy666
- * FileBasename = SubStateMachine.ts
- * FileBasenameNoExtension = SubStateMachine
- * URL = db://assets/Base/SubStateMachine.ts
- * ManualUrl = https://docs.cocos.com/creator/3.4/manual/en/
- *
+
+/***
+ * 子有限状态机基类
+ * 用处：例如有个idle的state，但是有多个方向，为了让主状态机更整洁，可以把同类型的但具体不同的state都封装在子状态机中
  */
- 
-@ccclass('SubStateMachine')
-export class SubStateMachine extends Component {
-    // [1]
-    // dummy = '';
+export default abstract class SubStateMachine {
+    private _currentState: State = null
+    stateMachines: Map<string, State> = new Map()
 
-    // [2]
-    // @property
-    // serializableDummy = 0;
+    constructor(public fsm: StateMachine) {}
 
-    start () {
-        // [3]
+    get currentState() {
+      return this._currentState
     }
 
-    // update (deltaTime: number) {
-    //     // [4]
-    // }
-}
+    set currentState(newState) {
+      if (!newState) {
+        return
+      }
+      this._currentState = newState
+      this._currentState.run()
+    }
 
-/**
- * [1] Class member could be defined like this.
- * [2] Use `property` decorator if your want the member to be serializable.
- * [3] Your initialization goes here.
- * [4] Your update function goes here.
- *
- * Learn more about scripting: https://docs.cocos.com/creator/3.4/manual/en/scripting/
- * Learn more about CCClass: https://docs.cocos.com/creator/3.4/manual/en/scripting/decorator.html
- * Learn more about life-cycle callbacks: https://docs.cocos.com/creator/3.4/manual/en/scripting/life-cycle-callbacks.html
- */
+    /***
+     * 具体类实现
+     */
+    abstract run(): void
+}
